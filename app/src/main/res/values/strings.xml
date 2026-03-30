@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">AdSkip</string>
+    <string name="service_description">AdSkip is an accessibility service that automatically skips ads on YouTube.</string>
+</resources>
