@@ -43,6 +43,14 @@
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Otomatis Skip Iklan" />
         </service>
+
+        <receiver
+            android:name=".NotificationActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.ryudev.adskip.action.DISABLE_FROM_NOTIFICATION" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
