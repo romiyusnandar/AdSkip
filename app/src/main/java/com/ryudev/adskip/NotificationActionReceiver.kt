@@ -7,7 +7,8 @@ import android.content.Intent
 class NotificationActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent?.action == AutoSkipService.ACTION_DISABLE_FROM_NOTIFICATION) {
-            AutoSkipService.setFeatureEnabled(false)
+            AutoSkipService.setFeatureEnabled(context, false)
+            AutoSkipService.clearStaleNotificationIfNeeded(context)
         }
     }
 }

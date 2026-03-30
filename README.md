@@ -1,6 +1,6 @@
 # 📺 YouTube Auto-Skip (AdSkip)
 
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/romiyusnandar/AdSkip?style=for-the-badge&color=green)](https://github.com/romizdev/YouTubeAutoSkip/releases/latest)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/romiyusnandar/AdSkip?style=for-the-badge&color=green)](https://github.com/romiyusnandar/AdSkip/releases/latest)
 [![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?style=for-the-badge&logo=android)](https://github.com/romiyusnandar/AdSkip/releases)
 [![Download APK](https://img.shields.io/badge/Download-Latest%20APK-orange?style=for-the-badge&logo=android)](https://github.com/romiyusnandar/AdSkip/releases/latest)
 

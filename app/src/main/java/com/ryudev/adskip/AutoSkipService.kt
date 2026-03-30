@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.graphics.Rect
 import android.os.Build
@@ -23,10 +24,13 @@ class AutoSkipService : AccessibilityService() {
     private var lastScanUptimeMs = 0L
     private var lastClickedNodeKey = ""
     private var lastClickUptimeMs = 0L
-    private var isForegroundShown = false
+    private var isNotificationShown = false
 
     companion object {
         const val ACTION_DISABLE_FROM_NOTIFICATION = "com.ryudev.adskip.action.DISABLE_FROM_NOTIFICATION"
+        private const val NOTIFICATION_ID = 1
+        private const val PREFS_NAME = "adskip_prefs"
+        private const val KEY_FEATURE_ENABLED = "feature_enabled"
         private const val YOUTUBE_PACKAGE = "com.google.android.youtube"
         private const val SCAN_THROTTLE_MS = 350L
         private const val CLICK_COOLDOWN_MS = 1200L
@@ -34,29 +38,60 @@ class AutoSkipService : AccessibilityService() {
         var isFeatureEnabled = mutableStateOf(false)
         private var onFeatureToggle: ((Boolean) -> Unit)? = null
 
-        fun setFeatureEnabled(enabled: Boolean) {
-            if (isFeatureEnabled.value == enabled) return
+        fun syncFeatureEnabled(context: Context) {
+            val enabled = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(KEY_FEATURE_ENABLED, false)
             isFeatureEnabled.value = enabled
-            onFeatureToggle?.invoke(enabled)
+        }
+
+        fun setFeatureEnabled(context: Context, enabled: Boolean) {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val previousEnabled = prefs.getBoolean(KEY_FEATURE_ENABLED, false)
+            val hasChanged = previousEnabled != enabled
+
+            prefs.edit().putBoolean(KEY_FEATURE_ENABLED, enabled).apply()
+            isFeatureEnabled.value = enabled
+
+            if (!enabled) {
+                cancelStatusNotification(context)
+            }
+
+            if (hasChanged) {
+                onFeatureToggle?.invoke(enabled)
+            }
+        }
+
+        fun clearStaleNotificationIfNeeded(context: Context) {
+            val enabled = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(KEY_FEATURE_ENABLED, false)
+            if (!enabled) {
+                cancelStatusNotification(context)
+            }
+        }
+
+        private fun cancelStatusNotification(context: Context) {
+            val manager = context.getSystemService(NotificationManager::class.java)
+            manager?.cancel(NOTIFICATION_ID)
         }
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         createNotificationChannel()
+        syncFeatureEnabled(this)
         onFeatureToggle = { enabled ->
-            if (enabled) showForegroundNotification() else hideForegroundNotification()
+            if (enabled) showStatusNotification() else hideStatusNotification()
         }
 
         if (isFeatureEnabled.value) {
-            showForegroundNotification()
+            showStatusNotification()
         } else {
-            hideForegroundNotification()
+            hideStatusNotification()
         }
     }
 
-    private fun showForegroundNotification() {
-        if (isForegroundShown) return
+    private fun showStatusNotification() {
+        if (isNotificationShown) return
 
         val intent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -91,18 +126,19 @@ class AutoSkipService : AccessibilityService() {
             .build()
 
         try {
-            startForeground(1, notification)
-            isForegroundShown = true
+            val manager = getSystemService(NotificationManager::class.java)
+            manager?.notify(NOTIFICATION_ID, notification)
+            isNotificationShown = true
         } catch (e: Exception) {
-            Log.e("AutoSkip", "Gagal memulai foreground service: ${e.message}")
+            Log.e("AutoSkip", "Gagal menampilkan notifikasi service: ${e.message}")
             Toast.makeText(this, "Gagal memulai layanan: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun hideForegroundNotification() {
-        if (!isForegroundShown) return
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        isForegroundShown = false
+    private fun hideStatusNotification() {
+        val manager = getSystemService(NotificationManager::class.java)
+        manager?.cancel(NOTIFICATION_ID)
+        isNotificationShown = false
     }
 
     private fun createNotificationChannel() {
@@ -119,30 +155,33 @@ class AutoSkipService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (!isFeatureEnabled.value) return
-        if (event == null) return
-        if (event.packageName?.toString() != YOUTUBE_PACKAGE) return
+        if (!isFeatureEnabled.value || event == null) return
 
-        val eventType = event.eventType
-        val isSupportedEvent = eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
-            eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-        if (!isSupportedEvent) return
+        try {
+            if (event.packageName?.toString() != YOUTUBE_PACKAGE) return
 
-        val now = SystemClock.uptimeMillis()
-        if (now - lastScanUptimeMs < SCAN_THROTTLE_MS) return
-        lastScanUptimeMs = now
+            val eventType = event.eventType
+            val isSupportedEvent = eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
+                eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+            if (!isSupportedEvent) return
 
-        val rootNode = rootInActiveWindow ?: return
+            val now = SystemClock.uptimeMillis()
+            if (now - lastScanUptimeMs < SCAN_THROTTLE_MS) return
+            lastScanUptimeMs = now
 
-        for (keyword in skipKeywords) {
-            val nodes = rootNode.findAccessibilityNodeInfosByText(keyword)
-            for (node in nodes) {
-                if (tryClick(node, now)) {
-                    Log.d("AutoSkip", "Berhasil menekan tombol: $keyword")
-                    Toast.makeText(this, "Berhasil melewati iklan!", Toast.LENGTH_SHORT).show()
-                    return
+            val rootNode = rootInActiveWindow ?: return
+
+            for (keyword in skipKeywords) {
+                val nodes = rootNode.findAccessibilityNodeInfosByText(keyword)
+                for (node in nodes) {
+                    if (tryClick(node, now)) {
+                        Log.d("AutoSkip", "Berhasil menekan tombol: $keyword")
+                        return
+                    }
                 }
             }
+        } catch (e: Exception) {
+            Log.e("AutoSkip", "onAccessibilityEvent error: ${e.message}", e)
         }
     }
 
@@ -175,15 +214,13 @@ class AutoSkipService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         onFeatureToggle = null
-        setFeatureEnabled(false)
-        hideForegroundNotification()
+        hideStatusNotification()
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         onFeatureToggle = null
-        setFeatureEnabled(false)
-        hideForegroundNotification()
+        hideStatusNotification()
         super.onDestroy()
     }
 

@@ -62,6 +62,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AutoSkipService.syncFeatureEnabled(this)
+        AutoSkipService.clearStaleNotificationIfNeeded(this)
         enableEdgeToEdge()
         setContent {
             AdSkipTheme {
@@ -74,6 +76,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        AutoSkipService.syncFeatureEnabled(this)
+        AutoSkipService.clearStaleNotificationIfNeeded(this)
         requestNotificationPermissionIfNeeded()
     }
 
@@ -210,7 +214,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
                     Switch(
                         checked = isFeatureActive,
                         onCheckedChange = {
-                            AutoSkipService.setFeatureEnabled(it)
+                            AutoSkipService.setFeatureEnabled(context, it)
                         }
                     )
                 }
@@ -224,19 +228,26 @@ fun MainScreen(modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        if (!isAccessibilityEnabled) {
-            Button(
-                onClick = {
-                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                    context.startActivity(intent)
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Aktifkan di Aksesibilitas")
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
+        Button(
+            onClick = {
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                context.startActivity(intent)
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (isAccessibilityEnabled) "Buka Pengaturan Aksesibilitas" else "Aktifkan di Aksesibilitas")
         }
+
+        if (isAccessibilityEnabled) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Jika service tidak berjalan coba matikan lalu nyalakan kembali aksesibilitassnya",
+                color = colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         Button(
             onClick = { openYouTube(context) },
