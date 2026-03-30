@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -28,6 +32,7 @@
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:enabled="true"
             android:exported="false"
+            android:foregroundServiceType="specialUse"
             android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
@@ -35,6 +40,8 @@
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Otomatis Skip Iklan" />
         </service>
     </application>
 
