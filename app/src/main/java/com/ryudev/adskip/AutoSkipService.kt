@@ -14,7 +14,7 @@ import androidx.core.app.NotificationCompat
 
 class AutoSkipService : AccessibilityService() {
 
-    private val CHANNEL_ID = "AdServiceChannel"
+    private val CHANNELID = "AdServiceChannel"
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -26,7 +26,7 @@ class AutoSkipService : AccessibilityService() {
             PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, CHANNELID)
             .setContentTitle("AdSkip Service Aktif")
             .setContentText("Menunggu iklan YouTube muncul...")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
@@ -46,7 +46,7 @@ class AutoSkipService : AccessibilityService() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
-                CHANNEL_ID,
+                CHANNELID,
                 "Ad Service Channel",
                 NotificationManager.IMPORTANCE_DEFAULT
             )
@@ -81,7 +81,6 @@ class AutoSkipService : AccessibilityService() {
 
         val parent = node.parent
         val clicked = tryClick(parent)
-        node.recycle()
         return clicked
     }
 
