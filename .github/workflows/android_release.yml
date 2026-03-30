@@ -33,7 +33,12 @@ jobs:
       - name: Get Latest Commit Message (Changelog)
         id: changelog
         run: |
-          echo "logs=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
+          DELIM="CHANGELOG_EOF_$(date +%s%N)"
+          {
+            echo "logs<<$DELIM"
+            git log -1 --pretty=%B
+            echo "$DELIM"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
