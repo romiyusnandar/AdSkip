@@ -1,4 +1,28 @@
 <resources>
     <string name="app_name">AdSkip</string>
-    <string name="service_description">AdSkip is an accessibility service that automatically skips ads on YouTube.</string>
+    <string name="service_description">AdSkip is an accessibility service that helps skip ads on YouTube automatically.</string>
+    <string name="main_title">YouTube Auto Skip</string>
+    <string name="accessibility_status_on">Accessibility: ON</string>
+    <string name="accessibility_status_off">Accessibility: OFF</string>
+    <string name="run_service">Run Service</string>
+    <string name="service_state_running">Auto-skip is running</string>
+    <string name="service_state_standby">Service standby</string>
+    <string name="accessibility_enable_hint">Enable Accessibility first to start</string>
+    <string name="open_accessibility_settings">Open Accessibility Settings</string>
+    <string name="enable_in_accessibility">Enable in Accessibility</string>
+    <string name="accessibility_restart_warning">If the service is not running, try turning Accessibility off and on again</string>
+    <string name="open_youtube">Open YouTube</string>
+    <string name="notification_channel_name">AdSkip Service</string>
+    <string name="notification_title_active">AdSkip Service Active</string>
+    <string name="notification_text_waiting">Waiting for YouTube ads...</string>
+    <string name="notification_action_disable">Turn Off</string>
+    <string name="service_interrupted">AdSkip service was interrupted</string>
+    <string name="service_start_failed_with_reason">Failed to start service: %1$s</string>
+    <string name="generic_unknown_error">Unknown</string>
+    <string name="ad_skipped">Successfully clicked button %1$s</string>
+
+    <string-array name="skip_keywords">
+        <item>Skip Ad</item>
+        <item>Skip Ads</item>
+    </string-array>
 </resources>

@@ -46,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -146,7 +147,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("YouTube Auto Skip", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.main_title), style = MaterialTheme.typography.headlineMedium)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -170,7 +171,11 @@ fun MainScreen(modifier: Modifier = Modifier) {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isAccessibilityEnabled) "Aksesibilitas: AKTIF" else "Aksesibilitas: NONAKTIF",
+                    text = if (isAccessibilityEnabled) {
+                        stringResource(R.string.accessibility_status_on)
+                    } else {
+                        stringResource(R.string.accessibility_status_off)
+                    },
                     color = if (isAccessibilityEnabled) {
                         colorScheme.onPrimaryContainer
                     } else {
@@ -200,9 +205,13 @@ fun MainScreen(modifier: Modifier = Modifier) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Jalankan Service", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.run_service), fontWeight = FontWeight.Bold)
                         Text(
-                            if (isFeatureActive) "Auto-skip sedang bekerja" else "Service stand-by",
+                            if (isFeatureActive) {
+                                stringResource(R.string.service_state_running)
+                            } else {
+                                stringResource(R.string.service_state_standby)
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = if (isFeatureActive) {
                                 colorScheme.onSecondaryContainer
@@ -221,7 +230,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
             }
         } else {
             Text(
-                "Aktifkan Aksesibilitas dulu untuk memulai",
+                stringResource(R.string.accessibility_enable_hint),
                 color = colorScheme.onSurfaceVariant
             )
         }
@@ -235,13 +244,19 @@ fun MainScreen(modifier: Modifier = Modifier) {
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (isAccessibilityEnabled) "Buka Pengaturan Aksesibilitas" else "Aktifkan di Aksesibilitas")
+            Text(
+                if (isAccessibilityEnabled) {
+                    stringResource(R.string.open_accessibility_settings)
+                } else {
+                    stringResource(R.string.enable_in_accessibility)
+                }
+            )
         }
 
         if (isAccessibilityEnabled) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Jika service tidak berjalan coba matikan lalu nyalakan kembali aksesibilitassnya",
+                stringResource(R.string.accessibility_restart_warning),
                 color = colorScheme.error,
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -259,7 +274,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
         ) {
             Icon(Icons.Default.PlayArrow, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Buka YouTube")
+            Text(stringResource(R.string.open_youtube))
         }
     }
 }

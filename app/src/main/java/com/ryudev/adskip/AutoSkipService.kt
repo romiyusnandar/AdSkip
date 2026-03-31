@@ -19,7 +19,8 @@ import androidx.core.app.NotificationCompat
 class AutoSkipService : AccessibilityService() {
 
     private val CHANNELID = "AdServiceChannel"
-    private val skipKeywords = listOf("Lewati Iklan", "Skip Ad")
+    private val skipKeywords: List<String>
+        get() = resources.getStringArray(R.array.skip_keywords).toList()
 
     private var lastScanUptimeMs = 0L
     private var lastClickedNodeKey = ""
@@ -112,15 +113,15 @@ class AutoSkipService : AccessibilityService() {
         )
 
         val notification = NotificationCompat.Builder(this, CHANNELID)
-            .setContentTitle("AdSkip Service Aktif")
-            .setContentText("Menunggu iklan YouTube muncul...")
+            .setContentTitle(getString(R.string.notification_title_active))
+            .setContentText(getString(R.string.notification_text_waiting))
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(pendingIntent)
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
-                "Matikan",
+                getString(R.string.notification_action_disable),
                 stopPendingIntent
             )
             .build()
@@ -131,7 +132,12 @@ class AutoSkipService : AccessibilityService() {
             isNotificationShown = true
         } catch (e: Exception) {
             Log.e("AutoSkip", "Gagal menampilkan notifikasi service: ${e.message}")
-            Toast.makeText(this, "Gagal memulai layanan: ${e.message}", Toast.LENGTH_SHORT).show()
+            val reason = e.message ?: getString(R.string.generic_unknown_error)
+            Toast.makeText(
+                this,
+                getString(R.string.service_start_failed_with_reason, reason),
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -145,7 +151,7 @@ class AutoSkipService : AccessibilityService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
                 CHANNELID,
-                "Ad Service Channel",
+                getString(R.string.notification_channel_name),
                 NotificationManager.IMPORTANCE_DEFAULT
             )
 
@@ -175,7 +181,9 @@ class AutoSkipService : AccessibilityService() {
                 val nodes = rootNode.findAccessibilityNodeInfosByText(keyword)
                 for (node in nodes) {
                     if (tryClick(node, now)) {
-                        Log.d("AutoSkip", "Berhasil menekan tombol: $keyword")
+                        val message = getString(R.string.ad_skipped, keyword)
+                        Log.d("AutoSkip", message)
+                        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                         return
                     }
                 }
@@ -225,6 +233,6 @@ class AutoSkipService : AccessibilityService() {
     }
 
     override fun onInterrupt() {
-        Toast.makeText(this, "AdSkip service terputus", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.service_interrupted), Toast.LENGTH_SHORT).show()
     }
 }
