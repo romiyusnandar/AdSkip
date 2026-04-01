@@ -208,13 +208,42 @@ class AutoSkipService : AccessibilityService() {
         if (now - lastConfirmUptimeMs < CONFIRM_COOLDOWN_MS) return false
         if (!containsAnyKeyword(rootNode, autoConfirmPromptKeywords)) return false
 
-        for (keyword in autoConfirmActionKeywords) {
-            if (findAndClickByKeyword(rootNode, keyword, now)) {
-                lastConfirmUptimeMs = now
-                return true
+        if (findAndClickExactAction(rootNode, autoConfirmActionKeywords, now)) {
+            lastConfirmUptimeMs = now
+            return true
+        }
+        return false
+    }
+
+    private fun findAndClickExactAction(
+        rootNode: AccessibilityNodeInfo,
+        actionKeywords: List<String>,
+        now: Long
+    ): Boolean {
+        for (keyword in actionKeywords) {
+            val nodes = rootNode.findAccessibilityNodeInfosByText(keyword)
+            try {
+                for (node in nodes) {
+                    if (!matchesExactLabel(node, keyword)) continue
+                    if (tryClick(node, now)) {
+                        return true
+                    }
+                }
+            } finally {
+                nodes.forEach { it.safeRecycle() }
             }
         }
         return false
+    }
+
+    private fun matchesExactLabel(node: AccessibilityNodeInfo, keyword: String): Boolean {
+        val expected = keyword.trim()
+        if (expected.isEmpty()) return false
+
+        val text = node.text?.toString()?.trim()
+        val contentDesc = node.contentDescription?.toString()?.trim()
+        return text.equals(expected, ignoreCase = true) ||
+            contentDesc.equals(expected, ignoreCase = true)
     }
 
     private fun containsAnyKeyword(rootNode: AccessibilityNodeInfo, keywords: List<String>): Boolean {

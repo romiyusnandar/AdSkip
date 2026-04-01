@@ -30,15 +30,12 @@
         <item>Video dijeda. Lanjutkan menonton?</item>
         <item>Lanjutkan menonton?</item>
         <item>Apakah Anda masih menonton?</item>
-        <item>Are you still watching?</item>
-        <item>Continue watching?</item>
+        <item>Masih menonton?</item>
     </string-array>
 
     <string-array name="auto_confirm_action_keywords">
         <item>Ya</item>
-        <item>Lanjutkan</item>
-        <item>Yes</item>
-        <item>Continue</item>
+        <item>YA</item>
     </string-array>
 </resources>
 
