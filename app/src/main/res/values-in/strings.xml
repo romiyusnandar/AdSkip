@@ -12,6 +12,15 @@
     <string name="enable_in_accessibility">Aktifkan di Aksesibilitas</string>
     <string name="accessibility_restart_warning">Jika layanan tidak berjalan, coba matikan lalu nyalakan kembali aksesibilitasnya</string>
     <string name="open_youtube">Buka YouTube</string>
+    <string name="auto_update_title">Pembaruan Otomatis</string>
+    <string name="auto_update_status_enabled">Aktif - pembaruan akan diunduh dan dipasang otomatis</string>
+    <string name="auto_update_status_disabled">Nonaktif - pembaruan otomatis dijeda</string>
+    <string name="auto_update_status_checking">Memeriksa pembaruan...</string>
+    <string name="auto_update_status_downloading">Mengunduh pembaruan terbaru...</string>
+    <string name="auto_update_status_ready">Pembaruan siap - installer akan dibuka</string>
+    <string name="auto_update_status_waiting_permission">Menunggu izin pemasangan aplikasi</string>
+    <string name="auto_update_status_error">Pemeriksaan pembaruan terakhir gagal</string>
+    <string name="update_found_downloading">Pembaruan %1$s ditemukan. Mengunduh...</string>
     <string name="notification_channel_name">Layanan AdSkip</string>
     <string name="notification_title_active">Layanan AdSkip Aktif</string>
     <string name="notification_text_waiting">Menunggu iklan YouTube muncul...</string>

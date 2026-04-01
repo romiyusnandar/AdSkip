@@ -12,6 +12,15 @@
     <string name="enable_in_accessibility">Enable in Accessibility</string>
     <string name="accessibility_restart_warning">If the service is not running, try turning Accessibility off and on again</string>
     <string name="open_youtube">Open YouTube</string>
+    <string name="auto_update_title">Auto Update</string>
+    <string name="auto_update_status_enabled">Enabled - updates are downloaded and installed automatically</string>
+    <string name="auto_update_status_disabled">Disabled - automatic update is paused</string>
+    <string name="auto_update_status_checking">Checking for updates...</string>
+    <string name="auto_update_status_downloading">Downloading latest update...</string>
+    <string name="auto_update_status_ready">Update ready - installer will open</string>
+    <string name="auto_update_status_waiting_permission">Waiting for install permission</string>
+    <string name="auto_update_status_error">Last update check failed</string>
+    <string name="update_found_downloading">Update %1$s found. Downloading...</string>
     <string name="notification_channel_name">AdSkip Service</string>
     <string name="notification_title_active">AdSkip Service Active</string>
     <string name="notification_text_waiting">Waiting for YouTube ads...</string>

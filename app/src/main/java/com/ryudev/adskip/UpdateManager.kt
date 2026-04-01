@@ -37,17 +37,20 @@ class UpdateManager(private val context: Context) {
         onUpToDate: () -> Unit = {},
         onError: (String) -> Unit = {}
     ) {
+        setUpdateStatus(context, STATUS_CHECKING)
         thread {
             try {
                 val request = Request.Builder().url(githubApiUrl).build()
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
+                        setUpdateStatus(context, STATUS_ERROR)
                         onError("Failed to fetch update information")
                         return@thread
                     }
 
                     val body = response.body?.string().orEmpty()
                     if (body.isBlank()) {
+                        setUpdateStatus(context, STATUS_ERROR)
                         onError("Failed to read update information")
                         return@thread
                     }
@@ -57,6 +60,7 @@ class UpdateManager(private val context: Context) {
                     val apkAsset = findApkAsset(json)
 
                     if (apkAsset == null) {
+                        setUpdateStatus(context, STATUS_ERROR)
                         onError("No APK file found in latest release")
                         return@thread
                     }
@@ -70,10 +74,12 @@ class UpdateManager(private val context: Context) {
                             )
                         )
                     } else {
+                        setUpdateStatus(context, STATUS_IDLE)
                         onUpToDate()
                     }
                 }
             } catch (e: Exception) {
+                setUpdateStatus(context, STATUS_ERROR)
                 onError(e.message ?: "Failed to fetch update information")
             }
         }
@@ -95,6 +101,7 @@ class UpdateManager(private val context: Context) {
 
         val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         val downloadId = downloadManager.enqueue(request)
+        setUpdateStatus(context, STATUS_DOWNLOADING)
         prefs.edit()
             .putLong(KEY_PENDING_DOWNLOAD_ID, downloadId)
             .putString(KEY_PENDING_VERSION_NAME, updateInfo.newVersion)
@@ -207,5 +214,45 @@ class UpdateManager(private val context: Context) {
         private const val KEY_PENDING_DOWNLOAD_ID = "pending_download_id"
         private const val KEY_PENDING_VERSION_NAME = "pending_version_name"
         private const val KEY_PENDING_APK_URI = "pending_apk_uri"
+        private const val KEY_AUTO_UPDATE_ENABLED = "auto_update_enabled"
+        private const val KEY_UPDATE_STATUS = "update_status"
+
+        const val STATUS_DISABLED = "disabled"
+        const val STATUS_IDLE = "idle"
+        const val STATUS_CHECKING = "checking"
+        const val STATUS_DOWNLOADING = "downloading"
+        const val STATUS_READY = "ready"
+        const val STATUS_WAITING_PERMISSION = "waiting_permission"
+        const val STATUS_ERROR = "error"
+
+        fun isAutoUpdateEnabled(context: Context): Boolean {
+            return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(KEY_AUTO_UPDATE_ENABLED, false)
+        }
+
+        fun setAutoUpdateEnabled(context: Context, enabled: Boolean) {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(KEY_AUTO_UPDATE_ENABLED, enabled)
+                .apply()
+
+            setUpdateStatus(
+                context,
+                if (enabled) STATUS_IDLE else STATUS_DISABLED
+            )
+        }
+
+        fun getUpdateStatus(context: Context): String {
+            return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_UPDATE_STATUS, STATUS_IDLE)
+                ?: STATUS_IDLE
+        }
+
+        fun setUpdateStatus(context: Context, status: String) {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString(KEY_UPDATE_STATUS, status)
+                .apply()
+        }
     }
 }
