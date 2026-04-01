@@ -21,10 +21,15 @@ class AutoSkipService : AccessibilityService() {
     private val CHANNELID = "AdServiceChannel"
     private val skipKeywords: List<String>
         get() = resources.getStringArray(R.array.skip_keywords).toList()
+    private val autoConfirmPromptKeywords: List<String>
+        get() = resources.getStringArray(R.array.auto_confirm_prompt_keywords).toList()
+    private val autoConfirmActionKeywords: List<String>
+        get() = resources.getStringArray(R.array.auto_confirm_action_keywords).toList()
 
     private var lastScanUptimeMs = 0L
     private var lastClickedNodeKey = ""
     private var lastClickUptimeMs = 0L
+    private var lastConfirmUptimeMs = 0L
     private var isNotificationShown = false
 
     companion object {
@@ -35,6 +40,7 @@ class AutoSkipService : AccessibilityService() {
         private const val YOUTUBE_PACKAGE = "com.google.android.youtube"
         private const val SCAN_THROTTLE_MS = 350L
         private const val CLICK_COOLDOWN_MS = 1200L
+        private const val CONFIRM_COOLDOWN_MS = 1800L
         private const val MAX_PARENT_DEPTH = 8
         var isFeatureEnabled = mutableStateOf(false)
         private var onFeatureToggle: ((Boolean) -> Unit)? = null
@@ -176,48 +182,112 @@ class AutoSkipService : AccessibilityService() {
             lastScanUptimeMs = now
 
             val rootNode = rootInActiveWindow ?: return
+            try {
+                if (tryAutoConfirmContinuePrompt(rootNode, now)) {
+                    Log.d("AutoSkip", "Continue watching dialog auto-confirmed")
+                    return
+                }
 
-            for (keyword in skipKeywords) {
-                val nodes = rootNode.findAccessibilityNodeInfosByText(keyword)
-                for (node in nodes) {
-                    if (tryClick(node, now)) {
+                for (keyword in skipKeywords) {
+                    if (findAndClickByKeyword(rootNode, keyword, now)) {
                         val message = getString(R.string.ad_skipped, keyword)
                         Log.d("AutoSkip", message)
                         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                         return
                     }
                 }
+            } finally {
+                rootNode.safeRecycle()
             }
         } catch (e: Exception) {
             Log.e("AutoSkip", "onAccessibilityEvent error: ${e.message}", e)
         }
     }
 
-    private fun tryClick(node: AccessibilityNodeInfo?, now: Long, depth: Int = 0): Boolean {
-        if (node == null) return false
-        if (depth > MAX_PARENT_DEPTH) return false
+    private fun tryAutoConfirmContinuePrompt(rootNode: AccessibilityNodeInfo, now: Long): Boolean {
+        if (now - lastConfirmUptimeMs < CONFIRM_COOLDOWN_MS) return false
+        if (!containsAnyKeyword(rootNode, autoConfirmPromptKeywords)) return false
 
-        if (node.isClickable && node.isEnabled) {
-            val nodeKey = buildNodeKey(node)
-            if (nodeKey == lastClickedNodeKey && now - lastClickUptimeMs < CLICK_COOLDOWN_MS) {
-                return false
+        for (keyword in autoConfirmActionKeywords) {
+            if (findAndClickByKeyword(rootNode, keyword, now)) {
+                lastConfirmUptimeMs = now
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun containsAnyKeyword(rootNode: AccessibilityNodeInfo, keywords: List<String>): Boolean {
+        for (keyword in keywords) {
+            val nodes = rootNode.findAccessibilityNodeInfosByText(keyword)
+            try {
+                if (nodes.isNotEmpty()) {
+                    return true
+                }
+            } finally {
+                nodes.forEach { it.safeRecycle() }
+            }
+        }
+        return false
+    }
+
+    private fun findAndClickByKeyword(rootNode: AccessibilityNodeInfo, keyword: String, now: Long): Boolean {
+        val nodes = rootNode.findAccessibilityNodeInfosByText(keyword)
+        try {
+            for (node in nodes) {
+                if (tryClick(node, now)) {
+                    return true
+                }
+            }
+        } finally {
+            nodes.forEach { it.safeRecycle() }
+        }
+        return false
+    }
+
+    private fun tryClick(node: AccessibilityNodeInfo?, now: Long): Boolean {
+        var currentNode = node
+        var depth = 0
+
+        while (currentNode != null && depth <= MAX_PARENT_DEPTH) {
+            if (currentNode.isClickable && currentNode.isEnabled) {
+                val nodeKey = buildNodeKey(currentNode)
+                if (nodeKey == lastClickedNodeKey && now - lastClickUptimeMs < CLICK_COOLDOWN_MS) {
+                    return false
+                }
+
+                val clicked = currentNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                if (clicked) {
+                    lastClickedNodeKey = nodeKey
+                    lastClickUptimeMs = now
+                }
+                return clicked
             }
 
-            val clicked = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            if (clicked) {
-                lastClickedNodeKey = nodeKey
-                lastClickUptimeMs = now
+            val parent = currentNode.parent
+            if (currentNode !== node) {
+                currentNode.safeRecycle()
             }
-            return clicked
+            currentNode = parent
+            depth++
         }
 
-        return tryClick(node.parent, now, depth + 1)
+        if (currentNode != null && currentNode !== node) {
+            currentNode.safeRecycle()
+        }
+
+        return false
     }
 
     private fun buildNodeKey(node: AccessibilityNodeInfo): String {
         val bounds = Rect()
         node.getBoundsInScreen(bounds)
         return "${node.viewIdResourceName}|${node.text}|${node.contentDescription}|${bounds.flattenToString()}"
+    }
+
+    @Suppress("DEPRECATION")
+    private fun AccessibilityNodeInfo.safeRecycle() {
+        recycle()
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
