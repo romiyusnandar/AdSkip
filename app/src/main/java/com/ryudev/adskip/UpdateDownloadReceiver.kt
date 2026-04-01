@@ -9,6 +9,7 @@ class UpdateDownloadReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent?.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
+        if (!UpdateManager.isAutoUpdateEnabled(context)) return
 
         val downloadId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
         if (downloadId <= 0L) return
@@ -17,8 +18,10 @@ class UpdateDownloadReceiver : BroadcastReceiver() {
         val completed = updateManager.consumeCompletedDownload(downloadId) ?: return
 
         if (updateManager.canInstallPackages()) {
+            UpdateManager.setUpdateStatus(context, UpdateManager.STATUS_READY)
             updateManager.installApk(completed.apkUri)
         } else {
+            UpdateManager.setUpdateStatus(context, UpdateManager.STATUS_WAITING_PERMISSION)
             updateManager.savePendingInstallUri(completed.apkUri)
             updateManager.openUnknownSourcesSettings()
         }

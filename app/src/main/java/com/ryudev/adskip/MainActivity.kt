@@ -47,6 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -64,17 +65,28 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private var hasPromptedThisForeground = false
     private var hasCheckedForUpdates = false
+    private var lastAutoUpdateEnabled = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         updateManager = UpdateManager(applicationContext)
+        lastAutoUpdateEnabled = UpdateManager.isAutoUpdateEnabled(this)
         AutoSkipService.syncFeatureEnabled(this)
         AutoSkipService.clearStaleNotificationIfNeeded(this)
         enableEdgeToEdge()
         setContent {
             AdSkipTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    MainScreen(modifier = Modifier.padding(innerPadding))
+                    MainScreen(
+                        modifier = Modifier.padding(innerPadding),
+                        onAutoUpdateToggled = { enabled ->
+                            UpdateManager.setAutoUpdateEnabled(this, enabled)
+                            if (enabled) {
+                                hasCheckedForUpdates = false
+                                checkForUpdatesIfNeeded()
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -90,7 +102,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        val currentAutoUpdateEnabled = UpdateManager.isAutoUpdateEnabled(this)
+        if (currentAutoUpdateEnabled && !lastAutoUpdateEnabled) {
+            hasCheckedForUpdates = false
+        }
+        lastAutoUpdateEnabled = currentAutoUpdateEnabled
+
         resumePendingInstallIfPossible()
+        checkForUpdatesIfNeeded()
     }
 
     override fun onStop() {
@@ -111,6 +130,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkForUpdatesIfNeeded() {
+        if (!UpdateManager.isAutoUpdateEnabled(this)) return
         if (hasCheckedForUpdates) return
         hasCheckedForUpdates = true
 
@@ -120,7 +140,7 @@ class MainActivity : ComponentActivity() {
                 runOnUiThread {
                     Toast.makeText(
                         this,
-                        "Update ${update.newVersion} found. Downloading...",
+                        getString(R.string.update_found_downloading, update.newVersion),
                         Toast.LENGTH_SHORT
                     ).show()
                     updateManager.downloadUpdate(update)
@@ -135,10 +155,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun resumePendingInstallIfPossible() {
+        if (!UpdateManager.isAutoUpdateEnabled(this)) return
         val pendingUri = updateManager.consumePendingInstallUri() ?: return
         if (updateManager.canInstallPackages()) {
+            UpdateManager.setUpdateStatus(this, UpdateManager.STATUS_READY)
             updateManager.installApk(pendingUri)
         } else {
+            UpdateManager.setUpdateStatus(this, UpdateManager.STATUS_WAITING_PERMISSION)
             updateManager.savePendingInstallUri(pendingUri)
         }
     }
@@ -168,10 +191,19 @@ fun isAccessibilityServiceEnabled(context: Context, service: Class<out Accessibi
 }
 
 @Composable
-fun MainScreen(modifier: Modifier = Modifier) {
+fun MainScreen(
+    modifier: Modifier = Modifier,
+    onAutoUpdateToggled: (Boolean) -> Unit = {}
+) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     val isFeatureActive by AutoSkipService.isFeatureEnabled
+    var isAutoUpdateEnabled by remember {
+        mutableStateOf(UpdateManager.isAutoUpdateEnabled(context))
+    }
+    var updateStatus by remember {
+        mutableStateOf(UpdateManager.getUpdateStatus(context))
+    }
     var isAccessibilityEnabled by remember {
         mutableStateOf(isAccessibilityServiceEnabled(context, AutoSkipService::class.java))
     }
@@ -183,6 +215,8 @@ fun MainScreen(modifier: Modifier = Modifier) {
             if (event == Lifecycle.Event.ON_RESUME) {
                 isAccessibilityEnabled =
                     isAccessibilityServiceEnabled(context, AutoSkipService::class.java)
+                isAutoUpdateEnabled = UpdateManager.isAutoUpdateEnabled(context)
+                updateStatus = UpdateManager.getUpdateStatus(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -237,47 +271,52 @@ fun MainScreen(modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        if (isAccessibilityEnabled) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isFeatureActive) {
-                        colorScheme.secondaryContainer
-                    } else {
-                        colorScheme.surfaceVariant
-                    }
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        val isServiceSwitchEnabled = isAccessibilityEnabled
+        val isServiceSwitchChecked = isAccessibilityEnabled && isFeatureActive
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .alpha(if (isServiceSwitchEnabled) 1f else 0.65f),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isServiceSwitchChecked) {
+                    colorScheme.secondaryContainer
+                } else {
+                    colorScheme.surfaceVariant
+                }
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.run_service), fontWeight = FontWeight.Bold)
-                        Text(
-                            if (isFeatureActive) {
-                                stringResource(R.string.service_state_running)
-                            } else {
-                                stringResource(R.string.service_state_standby)
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isFeatureActive) {
-                                colorScheme.onSecondaryContainer
-                            } else {
-                                colorScheme.onSurfaceVariant
-                            }
-                        )
-                    }
-                    Switch(
-                        checked = isFeatureActive,
-                        onCheckedChange = {
-                            AutoSkipService.setFeatureEnabled(context, it)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.run_service), fontWeight = FontWeight.Bold)
+                    Text(
+                        if (isServiceSwitchChecked) {
+                            stringResource(R.string.service_state_running)
+                        } else {
+                            stringResource(R.string.service_state_standby)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isServiceSwitchChecked) {
+                            colorScheme.onSecondaryContainer
+                        } else {
+                            colorScheme.onSurfaceVariant
                         }
                     )
                 }
+                Switch(
+                    checked = isServiceSwitchChecked,
+                    enabled = isServiceSwitchEnabled,
+                    onCheckedChange = {
+                        AutoSkipService.setFeatureEnabled(context, it)
+                    }
+                )
             }
-        } else {
+        }
+
+        if (!isAccessibilityEnabled) {
             Text(
                 stringResource(R.string.accessibility_enable_hint),
                 color = colorScheme.onSurfaceVariant
@@ -285,6 +324,37 @@ fun MainScreen(modifier: Modifier = Modifier) {
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.auto_update_title), fontWeight = FontWeight.Bold)
+                    Text(
+                        text = if (isAutoUpdateEnabled) stringResource(updateStatusToTextRes(updateStatus))
+                        else stringResource(R.string.auto_update_status_disabled),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = isAutoUpdateEnabled,
+                    onCheckedChange = {
+                        isAutoUpdateEnabled = it
+                        onAutoUpdateToggled(it)
+                        updateStatus = UpdateManager.getUpdateStatus(context)
+                    }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         Button(
             onClick = {
@@ -325,6 +395,17 @@ fun MainScreen(modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.width(8.dp))
             Text(stringResource(R.string.open_youtube))
         }
+    }
+}
+
+private fun updateStatusToTextRes(status: String): Int {
+    return when (status) {
+        UpdateManager.STATUS_CHECKING -> R.string.auto_update_status_checking
+        UpdateManager.STATUS_DOWNLOADING -> R.string.auto_update_status_downloading
+        UpdateManager.STATUS_READY -> R.string.auto_update_status_ready
+        UpdateManager.STATUS_WAITING_PERMISSION -> R.string.auto_update_status_waiting_permission
+        UpdateManager.STATUS_ERROR -> R.string.auto_update_status_error
+        else -> R.string.auto_update_status_enabled
     }
 }
 
