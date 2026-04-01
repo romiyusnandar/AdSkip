@@ -17,6 +17,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,8 +29,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -36,7 +41,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,11 +56,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -208,7 +218,6 @@ fun MainScreen(
         mutableStateOf(isAccessibilityServiceEnabled(context, AutoSkipService::class.java))
     }
 
-
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -226,15 +235,39 @@ fun MainScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .background(colorScheme.background)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.Start
     ) {
-        Text(stringResource(R.string.main_title), style = MaterialTheme.typography.headlineMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "v${getAppVersion(context)}",
+                style = MaterialTheme.typography.headlineSmall,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onBackground
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        Text(
+            text = stringResource(R.string.hero_title),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = colorScheme.onBackground
+        )
+        Text(
+            text = stringResource(R.string.hero_subtitle),
+            style = MaterialTheme.typography.bodyMedium,
+            color = colorScheme.onSurfaceVariant
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Status Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
@@ -246,105 +279,106 @@ fun MainScreen(
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
-            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = if (isAccessibilityEnabled) Icons.Default.CheckCircle else Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = if (isAccessibilityEnabled) colorScheme.primary else colorScheme.error
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isAccessibilityEnabled) {
-                        stringResource(R.string.accessibility_status_on)
-                    } else {
-                        stringResource(R.string.accessibility_status_off)
-                    },
-                    color = if (isAccessibilityEnabled) {
-                        colorScheme.onPrimaryContainer
-                    } else {
-                        colorScheme.onErrorContainer
-                    },
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        val isServiceSwitchEnabled = isAccessibilityEnabled
-        val isServiceSwitchChecked = isAccessibilityEnabled && isFeatureActive
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .alpha(if (isServiceSwitchEnabled) 1f else 0.65f),
-            colors = CardDefaults.cardColors(
-                containerColor = if (isServiceSwitchChecked) {
-                    colorScheme.secondaryContainer
-                } else {
-                    colorScheme.surfaceVariant
-                }
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
             Row(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    }
+                    .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.run_service), fontWeight = FontWeight.Bold)
-                    Text(
-                        if (isServiceSwitchChecked) {
-                            stringResource(R.string.service_state_running)
-                        } else {
-                            stringResource(R.string.service_state_standby)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (isServiceSwitchChecked) {
-                            colorScheme.onSecondaryContainer
-                        } else {
-                            colorScheme.onSurfaceVariant
-                        }
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = if (isAccessibilityEnabled) {
+                        colorScheme.primary.copy(alpha = 0.15f)
+                    } else {
+                        colorScheme.error.copy(alpha = 0.15f)
+                    }
+                ) {
+                    Icon(
+                        modifier = Modifier.padding(10.dp),
+                        imageVector = if (isAccessibilityEnabled) Icons.Default.CheckCircle else Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = if (isAccessibilityEnabled) colorScheme.primary else colorScheme.error
                     )
                 }
-                Switch(
-                    checked = isServiceSwitchChecked,
-                    enabled = isServiceSwitchEnabled,
-                    onCheckedChange = {
-                        AutoSkipService.setFeatureEnabled(context, it)
-                    }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.status_system),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = if (isAccessibilityEnabled) {
+                            stringResource(R.string.accessibility_status_on)
+                        } else {
+                            stringResource(R.string.accessibility_status_off)
+                        },
+                        color = if (isAccessibilityEnabled) {
+                            colorScheme.onPrimaryContainer
+                        } else {
+                            colorScheme.onErrorContainer
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = colorScheme.onSurfaceVariant
                 )
             }
         }
 
-        if (!isAccessibilityEnabled) {
-            Text(
-                stringResource(R.string.accessibility_enable_hint),
-                color = colorScheme.onSurfaceVariant
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceVariant),
+            colors = CardDefaults.cardColors(
+                containerColor = colorScheme.secondaryContainer
+            ),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.auto_update_title), fontWeight = FontWeight.Bold)
-                    Text(
-                        text = if (isAutoUpdateEnabled) stringResource(updateStatusToTextRes(updateStatus))
-                        else stringResource(R.string.auto_update_status_disabled),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
+                val isServiceSwitchEnabled = isAccessibilityEnabled
+                val isServiceSwitchChecked = isAccessibilityEnabled && isFeatureActive
+                SettingSwitchRow(
+                    title = stringResource(R.string.run_service),
+                    subtitle = if (isServiceSwitchChecked) {
+                        stringResource(R.string.service_state_running)
+                    } else {
+                        stringResource(R.string.service_state_standby)
+                    },
+                    checked = isServiceSwitchChecked,
+                    enabled = isServiceSwitchEnabled,
+                    icon = Icons.Default.Settings,
+                    onCheckedChange = { AutoSkipService.setFeatureEnabled(context, it) }
+                )
+
+                Spacer(
+                    modifier = Modifier
+                        .height(1.dp)
+                        .fillMaxWidth()
+                        .background(colorScheme.onSecondaryContainer.copy(alpha = 0.2f))
+                )
+
+                SettingSwitchRow(
+                    title = stringResource(R.string.auto_update_title),
+                    subtitle = if (isAutoUpdateEnabled) stringResource(updateStatusToTextRes(updateStatus))
+                    else stringResource(R.string.auto_update_status_disabled),
                     checked = isAutoUpdateEnabled,
+                    enabled = true,
+                    icon = Icons.Default.Warning,
                     onCheckedChange = {
                         isAutoUpdateEnabled = it
                         onAutoUpdateToggled(it)
@@ -354,34 +388,36 @@ fun MainScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(18.dp))
+//
+//        Button(
+//            onClick = {
+//                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+//                context.startActivity(intent)
+//            },
+//            modifier = Modifier.fillMaxWidth(),
+//            colors = ButtonDefaults.buttonColors(
+//                containerColor = colorScheme.primaryContainer,
+//                contentColor = colorScheme.onPrimaryContainer
+//            )
+//        ) {
+//            Row(
+//                verticalAlignment = Alignment.CenterVertically,
+//                horizontalArrangement = Arrangement.Center
+//            ) {
+//                Icon(Icons.Default.Settings, contentDescription = null)
+//                Spacer(modifier = Modifier.width(8.dp))
+//                Text(
+//                    if (isAccessibilityEnabled) {
+//                        stringResource(R.string.open_accessibility_settings)
+//                    } else {
+//                        stringResource(R.string.enable_in_accessibility)
+//                    }
+//                )
+//            }
+//        }
 
-        Button(
-            onClick = {
-                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                context.startActivity(intent)
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                if (isAccessibilityEnabled) {
-                    stringResource(R.string.open_accessibility_settings)
-                } else {
-                    stringResource(R.string.enable_in_accessibility)
-                }
-            )
-        }
-
-        if (isAccessibilityEnabled) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                stringResource(R.string.accessibility_restart_warning),
-                color = colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
+//        Spacer(modifier = Modifier.height(10.dp))
 
         Button(
             onClick = { openYouTube(context) },
@@ -391,10 +427,79 @@ fun MainScreen(
                 contentColor = colorScheme.onError
             )
         ) {
-            Icon(Icons.Default.PlayArrow, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.open_youtube))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.open_youtube))
+            }
         }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        NavigationBar(
+            modifier = Modifier.fillMaxWidth(),
+            containerColor = Color.Transparent
+        ) {
+            NavigationBarItem(
+                selected = true,
+                onClick = {},
+                icon = { Icon(Icons.Default.Home, contentDescription = null) },
+                label = { Text(stringResource(R.string.nav_dashboard)) }
+            )
+            NavigationBarItem(
+                selected = false,
+                onClick = { openYouTube(context) },
+                icon = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
+                label = { Text(stringResource(R.string.nav_youtube)) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingSwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    enabled: Boolean,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.65f)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = colorScheme.onBackground,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onCheckedChange
+        )
     }
 }
 
@@ -406,6 +511,14 @@ private fun updateStatusToTextRes(status: String): Int {
         UpdateManager.STATUS_WAITING_PERMISSION -> R.string.auto_update_status_waiting_permission
         UpdateManager.STATUS_ERROR -> R.string.auto_update_status_error
         else -> R.string.auto_update_status_enabled
+    }
+}
+
+private fun getAppVersion(context: Context): String {
+    return try {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "0"
+    } catch (e: Exception) {
+        "0"
     }
 }
 

@@ -2,6 +2,9 @@
     <string name="app_name">AdSkip</string>
     <string name="service_description">AdSkip is an accessibility service that helps skip ads on YouTube automatically.</string>
     <string name="main_title">YouTube Auto Skip</string>
+    <string name="hero_title">Smart Control.</string>
+    <string name="hero_subtitle">Enjoy YouTube with fewer ad interruptions automatically.</string>
+    <string name="status_system">SYSTEM STATUS</string>
     <string name="accessibility_status_on">Accessibility: ON</string>
     <string name="accessibility_status_off">Accessibility: OFF</string>
     <string name="run_service">Run Service</string>
@@ -21,6 +24,8 @@
     <string name="auto_update_status_waiting_permission">Waiting for install permission</string>
     <string name="auto_update_status_error">Last update check failed</string>
     <string name="update_found_downloading">Update %1$s found. Downloading...</string>
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_youtube">YouTube</string>
     <string name="notification_channel_name">AdSkip Service</string>
     <string name="notification_title_active">AdSkip Service Active</string>
     <string name="notification_text_waiting">Waiting for YouTube ads...</string>

@@ -2,6 +2,9 @@
     <string name="app_name">AdSkip</string>
     <string name="service_description">AdSkip adalah layanan aksesibilitas untuk membantu melewati iklan di YouTube secara otomatis.</string>
     <string name="main_title">YouTube Auto Skip</string>
+    <string name="hero_title">Kontrol Pintar.</string>
+    <string name="hero_subtitle">Nikmati konten YouTube tanpa gangguan iklan secara otomatis.</string>
+    <string name="status_system">STATUS SISTEM</string>
     <string name="accessibility_status_on">Aksesibilitas: AKTIF</string>
     <string name="accessibility_status_off">Aksesibilitas: NONAKTIF</string>
     <string name="run_service">Jalankan Layanan</string>
@@ -21,6 +24,8 @@
     <string name="auto_update_status_waiting_permission">Menunggu izin pemasangan aplikasi</string>
     <string name="auto_update_status_error">Pemeriksaan pembaruan terakhir gagal</string>
     <string name="update_found_downloading">Pembaruan %1$s ditemukan. Mengunduh...</string>
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_youtube">YouTube</string>
     <string name="notification_channel_name">Layanan AdSkip</string>
     <string name="notification_title_active">Layanan AdSkip Aktif</string>
     <string name="notification_text_waiting">Menunggu iklan YouTube muncul...</string>
