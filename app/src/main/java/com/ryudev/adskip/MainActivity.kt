@@ -11,6 +11,8 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.TextUtils
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -57,12 +59,15 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.ryudev.adskip.ui.theme.AdSkipTheme
 
 class MainActivity : ComponentActivity() {
+    private lateinit var updateManager: UpdateManager
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private var hasPromptedThisForeground = false
+    private var hasCheckedForUpdates = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        updateManager = UpdateManager(applicationContext)
         AutoSkipService.syncFeatureEnabled(this)
         AutoSkipService.clearStaleNotificationIfNeeded(this)
         enableEdgeToEdge()
@@ -80,6 +85,12 @@ class MainActivity : ComponentActivity() {
         AutoSkipService.syncFeatureEnabled(this)
         AutoSkipService.clearStaleNotificationIfNeeded(this)
         requestNotificationPermissionIfNeeded()
+        checkForUpdatesIfNeeded()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        resumePendingInstallIfPossible()
     }
 
     override fun onStop() {
@@ -97,6 +108,43 @@ class MainActivity : ComponentActivity() {
             hasPromptedThisForeground = true
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+
+    private fun checkForUpdatesIfNeeded() {
+        if (hasCheckedForUpdates) return
+        hasCheckedForUpdates = true
+
+        updateManager.checkForUpdates(
+            currentVersion = currentAppVersion(),
+            onUpdateAvailable = { update ->
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        "Update ${update.newVersion} found. Downloading...",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    updateManager.downloadUpdate(update)
+                }
+            },
+            onError = { error ->
+                runOnUiThread {
+                    Log.w("Update", error)
+                }
+            }
+        )
+    }
+
+    private fun resumePendingInstallIfPossible() {
+        val pendingUri = updateManager.consumePendingInstallUri() ?: return
+        if (updateManager.canInstallPackages()) {
+            updateManager.installApk(pendingUri)
+        } else {
+            updateManager.savePendingInstallUri(pendingUri)
+        }
+    }
+
+    private fun currentAppVersion(): String {
+        return packageManager.getPackageInfo(packageName, 0).versionName ?: "0"
     }
 }
 
@@ -127,6 +175,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
     var isAccessibilityEnabled by remember {
         mutableStateOf(isAccessibilityServiceEnabled(context, AutoSkipService::class.java))
     }
+
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
