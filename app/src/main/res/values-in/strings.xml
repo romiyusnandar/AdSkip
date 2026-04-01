@@ -22,8 +22,23 @@
     <string name="ad_skipped">Berhasil menekan tombol %1$s</string>
 
     <string-array name="skip_keywords">
-        <item>Lewati Iklan</item>
-        <item>Skip Ad</item>
+        <item>Lewati</item>
+        <item>Skip</item>
+    </string-array>
+
+    <string-array name="auto_confirm_prompt_keywords">
+        <item>Video dijeda. Lanjutkan menonton?</item>
+        <item>Lanjutkan menonton?</item>
+        <item>Apakah Anda masih menonton?</item>
+        <item>Are you still watching?</item>
+        <item>Continue watching?</item>
+    </string-array>
+
+    <string-array name="auto_confirm_action_keywords">
+        <item>Ya</item>
+        <item>Lanjutkan</item>
+        <item>Yes</item>
+        <item>Continue</item>
     </string-array>
 </resources>
 

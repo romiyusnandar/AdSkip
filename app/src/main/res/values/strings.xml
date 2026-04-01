@@ -25,4 +25,19 @@
         <item>Skip Ad</item>
         <item>Skip Ads</item>
     </string-array>
+
+    <string-array name="auto_confirm_prompt_keywords">
+        <item>Are you still watching?</item>
+        <item>Continue watching?</item>
+        <item>Video paused. Continue watching?</item>
+        <item>Video dijeda. Lanjutkan menonton?</item>
+        <item>Lanjutkan menonton?</item>
+    </string-array>
+
+    <string-array name="auto_confirm_action_keywords">
+        <item>Yes</item>
+        <item>Continue</item>
+        <item>Ya</item>
+        <item>Lanjutkan</item>
+    </string-array>
 </resources>
