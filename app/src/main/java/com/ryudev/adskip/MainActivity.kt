@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -47,6 +48,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -76,6 +78,8 @@ class MainActivity : ComponentActivity() {
     private var hasPromptedThisForeground = false
     private var hasCheckedForUpdates = false
     private var lastAutoUpdateEnabled = true
+    private var availableUpdate: UpdateManager.UpdateInfo? by mutableStateOf(null)
+    private var pendingUpdateDialog: UpdateManager.UpdateInfo? by mutableStateOf(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,11 +93,33 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     MainScreen(
                         modifier = Modifier.padding(innerPadding),
+                        availableUpdate = availableUpdate,
+                        pendingUpdateDialog = pendingUpdateDialog,
+                        onShowUpdateDialog = {
+                            pendingUpdateDialog = availableUpdate
+                        },
+                        onDismissUpdateDialog = {
+                            pendingUpdateDialog = null
+                        },
+                        onConfirmUpdate = {
+                            val updateToInstall = pendingUpdateDialog ?: availableUpdate ?: return@MainScreen
+                            startUpdateFlow(updateToInstall)
+                        },
                         onAutoUpdateToggled = { enabled ->
                             UpdateManager.setAutoUpdateEnabled(this, enabled)
                             if (enabled) {
+                                val existingUpdate = availableUpdate
+                                if (existingUpdate != null) {
+                                    availableUpdate = null
+                                    pendingUpdateDialog = existingUpdate
+                                }
                                 hasCheckedForUpdates = false
                                 checkForUpdatesIfNeeded()
+                            } else {
+                                pendingUpdateDialog?.let {
+                                    availableUpdate = it
+                                    pendingUpdateDialog = null
+                                }
                             }
                         }
                     )
@@ -119,11 +145,11 @@ class MainActivity : ComponentActivity() {
         lastAutoUpdateEnabled = currentAutoUpdateEnabled
 
         resumePendingInstallIfPossible()
-        checkForUpdatesIfNeeded()
     }
 
     override fun onStop() {
         hasPromptedThisForeground = false
+        hasCheckedForUpdates = false
         super.onStop()
     }
 
@@ -140,7 +166,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkForUpdatesIfNeeded() {
-        if (!UpdateManager.isAutoUpdateEnabled(this)) return
         if (hasCheckedForUpdates) return
         hasCheckedForUpdates = true
 
@@ -148,12 +173,19 @@ class MainActivity : ComponentActivity() {
             currentVersion = currentAppVersion(),
             onUpdateAvailable = { update ->
                 runOnUiThread {
-                    Toast.makeText(
-                        this,
-                        getString(R.string.update_found_downloading, update.newVersion),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    updateManager.downloadUpdate(update)
+                    UpdateManager.setUpdateStatus(this, UpdateManager.STATUS_IDLE)
+                    if (UpdateManager.isAutoUpdateEnabled(this)) {
+                        availableUpdate = null
+                        pendingUpdateDialog = update
+                    } else {
+                        availableUpdate = update
+                    }
+                }
+            },
+            onUpToDate = {
+                runOnUiThread {
+                    availableUpdate = null
+                    UpdateManager.setUpdateStatus(this, UpdateManager.STATUS_IDLE)
                 }
             },
             onError = { error ->
@@ -165,7 +197,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun resumePendingInstallIfPossible() {
-        if (!UpdateManager.isAutoUpdateEnabled(this)) return
         val pendingUri = updateManager.consumePendingInstallUri() ?: return
         if (updateManager.canInstallPackages()) {
             UpdateManager.setUpdateStatus(this, UpdateManager.STATUS_READY)
@@ -174,6 +205,17 @@ class MainActivity : ComponentActivity() {
             UpdateManager.setUpdateStatus(this, UpdateManager.STATUS_WAITING_PERMISSION)
             updateManager.savePendingInstallUri(pendingUri)
         }
+    }
+
+    private fun startUpdateFlow(update: UpdateManager.UpdateInfo) {
+        pendingUpdateDialog = null
+        availableUpdate = null
+        Toast.makeText(
+            this,
+            getString(R.string.update_found_downloading, update.newVersion),
+            Toast.LENGTH_SHORT
+        ).show()
+        updateManager.downloadUpdate(update)
     }
 
     private fun currentAppVersion(): String {
@@ -203,6 +245,11 @@ fun isAccessibilityServiceEnabled(context: Context, service: Class<out Accessibi
 @Composable
 fun MainScreen(
     modifier: Modifier = Modifier,
+    availableUpdate: UpdateManager.UpdateInfo? = null,
+    pendingUpdateDialog: UpdateManager.UpdateInfo? = null,
+    onShowUpdateDialog: () -> Unit = {},
+    onDismissUpdateDialog: () -> Unit = {},
+    onConfirmUpdate: () -> Unit = {},
     onAutoUpdateToggled: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -435,6 +482,60 @@ fun MainScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.open_youtube))
             }
+        }
+
+        if (!isAutoUpdateEnabled && availableUpdate != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = colorScheme.tertiaryContainer),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(
+                            R.string.manual_update_available_title,
+                            availableUpdate.newVersion
+                        ),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.onTertiaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = onShowUpdateDialog) {
+                        Text(text = stringResource(R.string.update_action))
+                    }
+                }
+            }
+        }
+
+        if (pendingUpdateDialog != null) {
+            AlertDialog(
+                onDismissRequest = onDismissUpdateDialog,
+                title = { Text(stringResource(R.string.update_dialog_title)) },
+                text = {
+                    Text(
+                        stringResource(
+                            R.string.update_dialog_message,
+                            pendingUpdateDialog.newVersion
+                        )
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = onConfirmUpdate) {
+                        Text(stringResource(R.string.update_action))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismissUpdateDialog) {
+                        Text(stringResource(R.string.later_action))
+                    }
+                }
+            )
         }
 
         Spacer(modifier = Modifier.weight(1f))

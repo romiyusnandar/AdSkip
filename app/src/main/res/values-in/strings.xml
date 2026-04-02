@@ -24,6 +24,11 @@
     <string name="auto_update_status_waiting_permission">Menunggu izin pemasangan aplikasi</string>
     <string name="auto_update_status_error">Pemeriksaan pembaruan terakhir gagal</string>
     <string name="update_found_downloading">Pembaruan %1$s ditemukan. Mengunduh...</string>
+    <string name="manual_update_available_title">Versi baru %1$s tersedia</string>
+    <string name="update_dialog_title">Versi baru tersedia</string>
+    <string name="update_dialog_message">Versi %1$s siap dipasang.</string>
+    <string name="update_action">Perbarui</string>
+    <string name="later_action">Nanti</string>
     <string name="nav_dashboard">Dashboard</string>
     <string name="nav_youtube">YouTube</string>
     <string name="notification_channel_name">Layanan AdSkip</string>
