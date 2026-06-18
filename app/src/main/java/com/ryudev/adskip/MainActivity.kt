@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -47,6 +48,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -64,6 +66,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -76,6 +79,8 @@ class MainActivity : ComponentActivity() {
     private var hasPromptedThisForeground = false
     private var hasCheckedForUpdates = false
     private var lastAutoUpdateEnabled = true
+    private var availableUpdate: UpdateManager.UpdateInfo? by mutableStateOf(null)
+    private var pendingUpdateDialog: UpdateManager.UpdateInfo? by mutableStateOf(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,11 +94,33 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     MainScreen(
                         modifier = Modifier.padding(innerPadding),
+                        availableUpdate = availableUpdate,
+                        pendingUpdateDialog = pendingUpdateDialog,
+                        onShowUpdateDialog = {
+                            pendingUpdateDialog = availableUpdate
+                        },
+                        onDismissUpdateDialog = {
+                            pendingUpdateDialog = null
+                        },
+                        onConfirmUpdate = {
+                            val updateToInstall = pendingUpdateDialog ?: availableUpdate ?: return@MainScreen
+                            startUpdateFlow(updateToInstall)
+                        },
                         onAutoUpdateToggled = { enabled ->
                             UpdateManager.setAutoUpdateEnabled(this, enabled)
                             if (enabled) {
+                                val existingUpdate = availableUpdate
+                                if (existingUpdate != null) {
+                                    availableUpdate = null
+                                    pendingUpdateDialog = existingUpdate
+                                }
                                 hasCheckedForUpdates = false
                                 checkForUpdatesIfNeeded()
+                            } else {
+                                pendingUpdateDialog?.let {
+                                    availableUpdate = it
+                                    pendingUpdateDialog = null
+                                }
                             }
                         }
                     )
@@ -119,11 +146,11 @@ class MainActivity : ComponentActivity() {
         lastAutoUpdateEnabled = currentAutoUpdateEnabled
 
         resumePendingInstallIfPossible()
-        checkForUpdatesIfNeeded()
     }
 
     override fun onStop() {
         hasPromptedThisForeground = false
+        hasCheckedForUpdates = false
         super.onStop()
     }
 
@@ -140,7 +167,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkForUpdatesIfNeeded() {
-        if (!UpdateManager.isAutoUpdateEnabled(this)) return
         if (hasCheckedForUpdates) return
         hasCheckedForUpdates = true
 
@@ -148,12 +174,19 @@ class MainActivity : ComponentActivity() {
             currentVersion = currentAppVersion(),
             onUpdateAvailable = { update ->
                 runOnUiThread {
-                    Toast.makeText(
-                        this,
-                        getString(R.string.update_found_downloading, update.newVersion),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    updateManager.downloadUpdate(update)
+                    UpdateManager.setUpdateStatus(this, UpdateManager.STATUS_IDLE)
+                    if (UpdateManager.isAutoUpdateEnabled(this)) {
+                        availableUpdate = null
+                        pendingUpdateDialog = update
+                    } else {
+                        availableUpdate = update
+                    }
+                }
+            },
+            onUpToDate = {
+                runOnUiThread {
+                    availableUpdate = null
+                    UpdateManager.setUpdateStatus(this, UpdateManager.STATUS_IDLE)
                 }
             },
             onError = { error ->
@@ -165,7 +198,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun resumePendingInstallIfPossible() {
-        if (!UpdateManager.isAutoUpdateEnabled(this)) return
         val pendingUri = updateManager.consumePendingInstallUri() ?: return
         if (updateManager.canInstallPackages()) {
             UpdateManager.setUpdateStatus(this, UpdateManager.STATUS_READY)
@@ -174,6 +206,17 @@ class MainActivity : ComponentActivity() {
             UpdateManager.setUpdateStatus(this, UpdateManager.STATUS_WAITING_PERMISSION)
             updateManager.savePendingInstallUri(pendingUri)
         }
+    }
+
+    private fun startUpdateFlow(update: UpdateManager.UpdateInfo) {
+        pendingUpdateDialog = null
+        availableUpdate = null
+        Toast.makeText(
+            this,
+            getString(R.string.update_found_downloading, update.newVersion),
+            Toast.LENGTH_SHORT
+        ).show()
+        updateManager.downloadUpdate(update)
     }
 
     private fun currentAppVersion(): String {
@@ -203,6 +246,11 @@ fun isAccessibilityServiceEnabled(context: Context, service: Class<out Accessibi
 @Composable
 fun MainScreen(
     modifier: Modifier = Modifier,
+    availableUpdate: UpdateManager.UpdateInfo? = null,
+    pendingUpdateDialog: UpdateManager.UpdateInfo? = null,
+    onShowUpdateDialog: () -> Unit = {},
+    onDismissUpdateDialog: () -> Unit = {},
+    onConfirmUpdate: () -> Unit = {},
     onAutoUpdateToggled: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -217,6 +265,12 @@ fun MainScreen(
     var isAccessibilityEnabled by remember {
         mutableStateOf(isAccessibilityServiceEnabled(context, AutoSkipService::class.java))
     }
+    var todaySkipSummary by remember {
+        mutableStateOf(SkipStatsStore.getTodaySummary(context))
+    }
+    var weeklySkipSummaries by remember {
+        mutableStateOf(SkipStatsStore.getWeeklySummaries(context))
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -226,6 +280,8 @@ fun MainScreen(
                     isAccessibilityServiceEnabled(context, AutoSkipService::class.java)
                 isAutoUpdateEnabled = UpdateManager.isAutoUpdateEnabled(context)
                 updateStatus = UpdateManager.getUpdateStatus(context)
+                todaySkipSummary = SkipStatsStore.getTodaySummary(context)
+                weeklySkipSummaries = SkipStatsStore.getWeeklySummaries(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -437,6 +493,67 @@ fun MainScreen(
             }
         }
 
+        Spacer(modifier = Modifier.height(14.dp))
+
+        SkipStatsSection(
+            todaySummary = todaySkipSummary,
+            weeklySummaries = weeklySkipSummaries
+        )
+
+        if (!isAutoUpdateEnabled && availableUpdate != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = colorScheme.tertiaryContainer),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(
+                            R.string.manual_update_available_title,
+                            availableUpdate.newVersion
+                        ),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.onTertiaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = onShowUpdateDialog) {
+                        Text(text = stringResource(R.string.update_action))
+                    }
+                }
+            }
+        }
+
+        if (pendingUpdateDialog != null) {
+            AlertDialog(
+                onDismissRequest = onDismissUpdateDialog,
+                title = { Text(stringResource(R.string.update_dialog_title)) },
+                text = {
+                    Text(
+                        stringResource(
+                            R.string.update_dialog_message,
+                            pendingUpdateDialog.newVersion
+                        )
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = onConfirmUpdate) {
+                        Text(stringResource(R.string.update_action))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismissUpdateDialog) {
+                        Text(stringResource(R.string.later_action))
+                    }
+                }
+            )
+        }
+
         Spacer(modifier = Modifier.weight(1f))
 
         NavigationBar(
@@ -455,6 +572,162 @@ fun MainScreen(
                 icon = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
                 label = { Text(stringResource(R.string.nav_youtube)) }
             )
+        }
+    }
+}
+
+@Composable
+private fun SkipStatsSection(
+    todaySummary: SkipDaySummary,
+    weeklySummaries: List<SkipWeekSummary>
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.skip_stats_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = colorScheme.primaryContainer),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        text = stringResource(R.string.skip_stats_today),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = todaySummary.skipCount.toString(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = stringResource(R.string.skip_stats_today_suffix),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onPrimaryContainer
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = stringResource(R.string.skip_stats_notes),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colorScheme.onPrimaryContainer
+                    )
+                    if (todaySummary.notes.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.skip_stats_empty),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.onPrimaryContainer
+                        )
+                    } else {
+                        todaySummary.notes.forEach { note ->
+                            Text(
+                                text = "• $note",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = stringResource(R.string.skip_stats_weekly_history),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (weeklySummaries.all { it.totalSkips == 0 }) {
+                Text(
+                    text = stringResource(R.string.skip_stats_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurfaceVariant
+                )
+            } else {
+                weeklySummaries.forEach { weekSummary ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = colorScheme.background),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = weekSummary.weekLabel,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colorScheme.onBackground
+                                    )
+                                    Text(
+                                        text = stringResource(
+                                            R.string.skip_stats_week_total,
+                                            weekSummary.totalSkips
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            weekSummary.days.forEach { daySummary ->
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        text = daySummary.dayLabel,
+                                        modifier = Modifier.weight(1f),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = daySummary.skipCount.toString(),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colorScheme.onBackground
+                                    )
+                                }
+                                if (daySummary.notes.isNotEmpty()) {
+                                    daySummary.notes.forEach { note ->
+                                        Text(
+                                            text = "   • $note",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -517,7 +790,7 @@ private fun updateStatusToTextRes(status: String): Int {
 private fun getAppVersion(context: Context): String {
     return try {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "0"
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         "0"
     }
 }
@@ -529,7 +802,7 @@ private fun openYouTube(context: Context) {
         return
     }
 
-    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com"))
+    val webIntent = Intent(Intent.ACTION_VIEW, "https://www.youtube.com".toUri())
     context.startActivity(webIntent)
 }
 

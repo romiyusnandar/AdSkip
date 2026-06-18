@@ -191,6 +191,7 @@ class AutoSkipService : AccessibilityService() {
                 for (keyword in skipKeywords) {
                     if (findAndClickByKeyword(rootNode, keyword, now)) {
                         val message = getString(R.string.ad_skipped, keyword)
+                        SkipStatsStore.recordSkip(this, matchedText = keyword, note = message)
                         Log.d("AutoSkip", message)
                         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                         return

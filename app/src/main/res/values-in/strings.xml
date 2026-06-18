@@ -24,6 +24,11 @@
     <string name="auto_update_status_waiting_permission">Menunggu izin pemasangan aplikasi</string>
     <string name="auto_update_status_error">Pemeriksaan pembaruan terakhir gagal</string>
     <string name="update_found_downloading">Pembaruan %1$s ditemukan. Mengunduh...</string>
+    <string name="manual_update_available_title">Versi baru %1$s tersedia</string>
+    <string name="update_dialog_title">Versi baru tersedia</string>
+    <string name="update_dialog_message">Versi %1$s siap dipasang.</string>
+    <string name="update_action">Perbarui</string>
+    <string name="later_action">Nanti</string>
     <string name="nav_dashboard">Dashboard</string>
     <string name="nav_youtube">YouTube</string>
     <string name="notification_channel_name">Layanan AdSkip</string>
@@ -34,6 +39,14 @@
     <string name="service_start_failed_with_reason">Gagal memulai layanan: %1$s</string>
     <string name="generic_unknown_error">Tidak diketahui</string>
     <string name="ad_skipped">Berhasil menekan tombol %1$s</string>
+    <string name="skip_stats_title">Statistik Lewati Iklan</string>
+    <string name="skip_stats_today">Hari Ini</string>
+    <string name="skip_stats_today_suffix">iklan di-skip hari ini</string>
+    <string name="skip_stats_notes">Catatan</string>
+    <string name="skip_stats_this_week">Minggu Ini</string>
+    <string name="skip_stats_weekly_history">Riwayat Mingguan</string>
+    <string name="skip_stats_week_total">Total: %1$d</string>
+    <string name="skip_stats_empty">Belum ada riwayat skip</string>
 
     <string-array name="skip_keywords">
         <item>Lewati</item>
