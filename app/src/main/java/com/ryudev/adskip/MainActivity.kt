@@ -66,6 +66,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -264,6 +265,12 @@ fun MainScreen(
     var isAccessibilityEnabled by remember {
         mutableStateOf(isAccessibilityServiceEnabled(context, AutoSkipService::class.java))
     }
+    var todaySkipSummary by remember {
+        mutableStateOf(SkipStatsStore.getTodaySummary(context))
+    }
+    var weeklySkipSummaries by remember {
+        mutableStateOf(SkipStatsStore.getWeeklySummaries(context))
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -273,6 +280,8 @@ fun MainScreen(
                     isAccessibilityServiceEnabled(context, AutoSkipService::class.java)
                 isAutoUpdateEnabled = UpdateManager.isAutoUpdateEnabled(context)
                 updateStatus = UpdateManager.getUpdateStatus(context)
+                todaySkipSummary = SkipStatsStore.getTodaySummary(context)
+                weeklySkipSummaries = SkipStatsStore.getWeeklySummaries(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -484,6 +493,13 @@ fun MainScreen(
             }
         }
 
+        Spacer(modifier = Modifier.height(14.dp))
+
+        SkipStatsSection(
+            todaySummary = todaySkipSummary,
+            weeklySummaries = weeklySkipSummaries
+        )
+
         if (!isAutoUpdateEnabled && availableUpdate != null) {
             Spacer(modifier = Modifier.height(12.dp))
             Card(
@@ -561,6 +577,162 @@ fun MainScreen(
 }
 
 @Composable
+private fun SkipStatsSection(
+    todaySummary: SkipDaySummary,
+    weeklySummaries: List<SkipWeekSummary>
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.skip_stats_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = colorScheme.primaryContainer),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        text = stringResource(R.string.skip_stats_today),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = todaySummary.skipCount.toString(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = stringResource(R.string.skip_stats_today_suffix),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onPrimaryContainer
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = stringResource(R.string.skip_stats_notes),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colorScheme.onPrimaryContainer
+                    )
+                    if (todaySummary.notes.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.skip_stats_empty),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.onPrimaryContainer
+                        )
+                    } else {
+                        todaySummary.notes.forEach { note ->
+                            Text(
+                                text = "• $note",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = stringResource(R.string.skip_stats_weekly_history),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (weeklySummaries.all { it.totalSkips == 0 }) {
+                Text(
+                    text = stringResource(R.string.skip_stats_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurfaceVariant
+                )
+            } else {
+                weeklySummaries.forEach { weekSummary ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = colorScheme.background),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = weekSummary.weekLabel,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colorScheme.onBackground
+                                    )
+                                    Text(
+                                        text = stringResource(
+                                            R.string.skip_stats_week_total,
+                                            weekSummary.totalSkips
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            weekSummary.days.forEach { daySummary ->
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        text = daySummary.dayLabel,
+                                        modifier = Modifier.weight(1f),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = daySummary.skipCount.toString(),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colorScheme.onBackground
+                                    )
+                                }
+                                if (daySummary.notes.isNotEmpty()) {
+                                    daySummary.notes.forEach { note ->
+                                        Text(
+                                            text = "   • $note",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun SettingSwitchRow(
     title: String,
     subtitle: String,
@@ -618,7 +790,7 @@ private fun updateStatusToTextRes(status: String): Int {
 private fun getAppVersion(context: Context): String {
     return try {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "0"
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         "0"
     }
 }
@@ -630,7 +802,7 @@ private fun openYouTube(context: Context) {
         return
     }
 
-    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com"))
+    val webIntent = Intent(Intent.ACTION_VIEW, "https://www.youtube.com".toUri())
     context.startActivity(webIntent)
 }
 

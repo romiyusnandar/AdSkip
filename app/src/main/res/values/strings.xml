@@ -18,12 +18,12 @@
     <string name="auto_update_title">Auto Update</string>
     <string name="auto_update_status_enabled">Enabled - updates are downloaded and installed automatically</string>
     <string name="auto_update_status_disabled">Disabled - automatic update is paused</string>
-    <string name="auto_update_status_checking">Checking for updates...</string>
-    <string name="auto_update_status_downloading">Downloading latest update...</string>
+    <string name="auto_update_status_checking">Checking for updates…</string>
+    <string name="auto_update_status_downloading">Downloading latest update…</string>
     <string name="auto_update_status_ready">Update ready - installer will open</string>
     <string name="auto_update_status_waiting_permission">Waiting for install permission</string>
     <string name="auto_update_status_error">Last update check failed</string>
-    <string name="update_found_downloading">Update %1$s found. Downloading...</string>
+    <string name="update_found_downloading">Update %1$s found. Downloading…</string>
     <string name="manual_update_available_title">New version %1$s is available</string>
     <string name="update_dialog_title">New version available</string>
     <string name="update_dialog_message">Version %1$s is ready to install.</string>
@@ -33,12 +33,20 @@
     <string name="nav_youtube">YouTube</string>
     <string name="notification_channel_name">AdSkip Service</string>
     <string name="notification_title_active">AdSkip Service Active</string>
-    <string name="notification_text_waiting">Waiting for YouTube ads...</string>
+    <string name="notification_text_waiting">Waiting for YouTube ads…</string>
     <string name="notification_action_disable">Turn Off</string>
     <string name="service_interrupted">AdSkip service was interrupted</string>
     <string name="service_start_failed_with_reason">Failed to start service: %1$s</string>
     <string name="generic_unknown_error">Unknown</string>
     <string name="ad_skipped">Successfully clicked button %1$s</string>
+    <string name="skip_stats_title">Skip Statistics</string>
+    <string name="skip_stats_today">Today</string>
+    <string name="skip_stats_today_suffix">ads skipped today</string>
+    <string name="skip_stats_notes">Notes</string>
+    <string name="skip_stats_this_week">This Week</string>
+    <string name="skip_stats_weekly_history">Weekly History</string>
+    <string name="skip_stats_week_total">Total: %1$d</string>
+    <string name="skip_stats_empty">No skip history yet</string>
 
     <string-array name="skip_keywords">
         <item>Skip Ad</item>
